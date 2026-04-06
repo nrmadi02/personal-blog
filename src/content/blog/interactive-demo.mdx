@@ -1,0 +1,41 @@
+---
+title: MDX dan Komponen Interaktif
+description: Cara menyematkan komponen React langsung di dalam tulisan blog menggunakan MDX.
+pubDate: 2026-04-06
+tags: [mdx, react, interaktif]
+---
+
+import Counter from '../../components/Counter.tsx';
+
+Salah satu fitur paling powerful dari MDX adalah kemampuan untuk menyematkan **komponen React interaktif** langsung di dalam konten Markdown. Ini mengubah tulisan blog statis menjadi dokumen yang hidup.
+
+## Contoh Counter Sederhana
+
+Berikut komponen counter interaktif yang disematkan langsung di tulisan ini:
+
+<Counter client:load />
+
+## Mengapa Ini Penting
+
+Blog tradisional bersifat statis — kamu baca teks dan selesai. Dengan MDX, kamu bisa:
+
+- **Menampilkan demo kode langsung** yang bisa diinteraksi pembaca
+- **Menyematkan visualisasi data** yang update secara real-time
+- **Membuat tutorial interaktif** di mana pembaca bisa bereksperimen
+
+## Cara Kerjanya
+
+Di Astro, file MDX hidup berdampingan dengan konten Markdown biasa. Cukup impor komponen React di bagian atas file dan gunakan secara inline. Astro menangani hidrasi secara otomatis dengan direktif `client:`.
+
+```mdx
+---
+title: Tulisan MDX Saya
+---
+import { Chart } from '../components/Chart.tsx';
+
+# Menggunakan Chart
+
+<Chart data={[1, 2, 3]} client:visible />
+```
+
+Direktif `client:visible` berarti komponen hanya terhidrasi saat masuk viewport — menghemat bandwidth untuk pembaca yang tidak scroll sampai situasi itu.

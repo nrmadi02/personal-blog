@@ -1,0 +1,139 @@
+---
+import MainLayout from "../../layouts/MainLayout.astro";
+import Prose from "../../components/Prose.astro";
+import { getCollection, render } from "astro:content";
+
+export async function getStaticPaths() {
+  const posts = await getCollection("blog");
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+
+const allPosts = (await getCollection("blog"))
+  .filter((p) => !p.data.draft)
+  .sort((a, b) => a.data.pubDate.valueOf() - b.data.pubDate.valueOf());
+
+const currentIndex = allPosts.findIndex((p) => p.id === post.id);
+const prevPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
+const nextPost =
+  currentIndex < allPosts.length - 1 ? allPosts[currentIndex + 1] : null;
+
+const formattedDate = post.data.pubDate.toLocaleDateString("id-ID", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+
+function estimateReadingTime(text: string): number {
+  const wordsPerMinute = 200;
+  const words = text.split(/\s+/).length;
+  return Math.max(1, Math.ceil(words / wordsPerMinute));
+}
+
+const readingTime = estimateReadingTime(post.data.description || "");
+---
+
+<MainLayout
+  title={`${post.data.title} — Nur Ahmadi`}
+  description={post.data.description}
+>
+  <article class="max-w-3xl mx-auto px-6 pt-24 pb-16">
+    <!-- Back link -->
+    <div data-animate>
+      <a
+        href="/blog"
+        class="inline-flex items-center gap-1.5 text-sm text-muted hover:text-primary transition-colors duration-200 mb-8"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        Kembali ke blog
+      </a>
+    </div>
+
+    <!-- Header -->
+    <header class="mb-10" data-animate data-animate-delay="1">
+      <div class="flex items-center gap-3 text-sm text-muted mb-4">
+        <time datetime={post.data.pubDate.toISOString()}>{formattedDate}</time>
+        <span aria-hidden="true">&middot;</span>
+        <span>{readingTime} menit baca</span>
+      </div>
+
+      <h1
+        class="text-3xl sm:text-4xl font-bold tracking-tight text-(--color-foreground) mb-4"
+      >
+        {post.data.title}
+      </h1>
+
+      {
+        post.data.tags.length > 0 && (
+          <div class="flex flex-wrap gap-2">
+            {post.data.tags.map((tag: string) => (
+              <a
+                href={`/tags/${tag}`}
+                class="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors duration-200"
+              >
+                {tag}
+              </a>
+            ))}
+          </div>
+        )
+      }
+    </header>
+
+    <!-- Content -->
+    <Prose>
+      <Content />
+    </Prose>
+
+    <!-- Post Navigation -->
+    <nav class="mt-16 pt-8 border-t border-border grid grid-cols-2 gap-4" data-animate>
+      {
+        prevPost ? (
+          <a
+            href={`/blog/${prevPost.id}`}
+            class="group flex flex-col gap-1 p-4 rounded-lg border border-border hover:border-primary/40 transition-all duration-200"
+          >
+            <span class="text-xs text-muted">Sebelumnya</span>
+            <span class="text-sm font-medium text-(--color-foreground) group-hover:text-primary transition-colors duration-200 truncate">
+              {prevPost.data.title}
+            </span>
+          </a>
+        ) : (
+          <div />
+        )
+      }
+      {
+        nextPost ? (
+          <a
+            href={`/blog/${nextPost.id}`}
+            class="group flex flex-col gap-1 p-4 rounded-lg border border-border hover:border-primary/40 transition-all duration-200 text-right"
+          >
+            <span class="text-xs text-muted">Selanjutnya</span>
+            <span class="text-sm font-medium text-(--color-foreground) group-hover:text-primary transition-colors duration-200 truncate">
+              {nextPost.data.title}
+            </span>
+          </a>
+        ) : (
+          <div />
+        )
+      }
+    </nav>
+  </article>
+</MainLayout>

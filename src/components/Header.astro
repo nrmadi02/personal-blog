@@ -1,0 +1,160 @@
+---
+import ThemeToggle from "./ThemeToggle.tsx";
+
+const navLinks = [
+  { href: "/", label: "Beranda" },
+  { href: "/blog", label: "Blog" },
+  { href: "/about", label: "Tentang" },
+];
+
+const currentPath = Astro.url.pathname;
+---
+
+<header
+  class="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-border"
+  transition:persist
+  transition:name="site-header"
+>
+  <nav class="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between">
+    <a
+      href="/"
+      class="text-lg font-semibold tracking-tight text-(--color-foreground) hover:text-primary transition-colors duration-200"
+    >
+      Nur Ahmadi
+    </a>
+
+    <!-- Desktop nav -->
+    <div class="hidden md:flex items-center gap-1">
+      {
+        navLinks.map(({ href, label }) => (
+          <a
+            href={href}
+            class:list={[
+              "px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200",
+              currentPath === href ||
+              (href !== "/" && currentPath.startsWith(href))
+                ? "text-primary bg-primary/10"
+                : "text-muted hover:text-(--color-foreground) hover:bg-border/50",
+            ]}
+          >
+            {label}
+          </a>
+        ))
+      }
+      <div class="ml-2 border-l border-border pl-2">
+        <ThemeToggle client:load />
+      </div>
+    </div>
+
+    <!-- Mobile controls -->
+    <div class="flex md:hidden items-center gap-2">
+      <ThemeToggle client:load />
+      <button
+        id="mobile-menu-btn"
+        type="button"
+        aria-label="Toggle navigation menu"
+        aria-expanded="false"
+        aria-controls="mobile-menu"
+        class="mobile-menu-btn p-2 rounded-lg text-muted hover:text-(--color-foreground) hover:bg-border transition-colors duration-200 cursor-pointer"
+      >
+        <svg
+          id="menu-icon"
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        >
+          <line class="menu-line menu-line-1" x1="4" y1="7" x2="20" y2="7"
+          ></line>
+          <line class="menu-line menu-line-2" x1="4" y1="12" x2="20" y2="12"
+          ></line>
+          <line class="menu-line menu-line-3" x1="4" y1="17" x2="20" y2="17"
+          ></line>
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Mobile menu panel -->
+  <div id="mobile-menu" class="md:hidden border-t border-border">
+    <div class="max-w-3xl mx-auto px-6 py-3 flex flex-col gap-1">
+      {
+        navLinks.map(({ href, label }) => (
+          <a
+            href={href}
+            class:list={[
+              "px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200",
+              currentPath === href ||
+              (href !== "/" && currentPath.startsWith(href))
+                ? "text-primary bg-primary/10"
+                : "text-muted hover:text-(--color-foreground) hover:bg-border/50",
+            ]}
+          >
+            {label}
+          </a>
+        ))
+      }
+    </div>
+  </div>
+</header>
+
+<script is:inline>
+  (function () {
+    var btn = document.getElementById("mobile-menu-btn");
+    var menu = document.getElementById("mobile-menu");
+
+    if (!btn || !menu) return;
+
+    function openMenu() {
+      menu.classList.add("is-open");
+      btn.setAttribute("aria-expanded", "true");
+    }
+
+    function closeMenu() {
+      menu.classList.remove("is-open");
+      btn.setAttribute("aria-expanded", "false");
+    }
+
+    function toggleMenu() {
+      var isOpen = btn.getAttribute("aria-expanded") === "true";
+      isOpen ? closeMenu() : openMenu();
+    }
+
+    btn.addEventListener("click", toggleMenu);
+
+    menu.querySelectorAll("a").forEach(function (link) {
+      link.addEventListener("click", function () {
+        if (btn.getAttribute("aria-expanded") === "true") {
+          closeMenu();
+        }
+      });
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && btn.getAttribute("aria-expanded") === "true") {
+        closeMenu();
+        btn.focus();
+      }
+    });
+
+    document.addEventListener("astro:after-swap", function () {
+      var path = window.location.pathname;
+      menu.querySelectorAll("a").forEach(function (link) {
+        var href = link.getAttribute("href");
+        if (!href) return;
+        var isActive = path === href || (href !== "/" && path.startsWith(href));
+        if (isActive) {
+          link.className =
+            "px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200 text-primary bg-primary/10";
+        } else {
+          link.className =
+            "px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200 text-muted hover:text-(--color-foreground) hover:bg-border/50";
+        }
+      });
+    });
+  })();
+</script>

@@ -1,0 +1,97 @@
+---
+import MainLayout from "../../layouts/MainLayout.astro";
+import BlogCard from "../../components/BlogCard.astro";
+import { getCollection } from "astro:content";
+import type { PaginateFunction } from "astro";
+
+export async function getStaticPaths({
+  paginate,
+}: {
+  paginate: PaginateFunction;
+}) {
+  const allPosts = (await getCollection("blog"))
+    .filter((post) => !post.data.draft)
+    .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+
+  return paginate(allPosts, { pageSize: 6 });
+}
+
+const { page } = Astro.props;
+---
+
+<MainLayout title="Semua Tulisan — Nur Ahmadi">
+  <div class="max-w-3xl mx-auto px-6 pt-24 pb-16">
+    <div data-animate>
+      <h1
+        class="text-3xl font-bold tracking-tight text-(--color-foreground) mb-4"
+      >
+        Semua Tulisan
+      </h1>
+      <p class="text-muted text-sm mb-8">
+        Menampilkan {page.start + 1}–{page.end + 1} dari {page.total} tulisan
+      </p>
+    </div>
+
+    <!-- Posts -->
+    <div class="grid gap-4">
+      {
+        page.data.map((post, index) => (
+          <div data-animate data-animate-delay={String(index + 1)}>
+            <BlogCard
+              title={post.data.title}
+              description={post.data.description}
+              pubDate={post.data.pubDate}
+              tags={post.data.tags}
+              slug={post.id}
+            />
+          </div>
+        ))
+      }
+    </div>
+
+    {
+      page.data.length === 0 && (
+        <p class="text-muted text-center py-16">
+          Belum ada tulisan di halaman ini.
+        </p>
+      )
+    }
+
+    <!-- Pagination -->
+    {
+      page.lastPage > 1 && (
+        <nav class="flex items-center justify-center gap-2 mt-12">
+          {page.url.prev ? (
+            <a
+              href={page.url.prev}
+              class="px-3 py-2 rounded-lg text-sm font-medium border border-border text-muted hover:text-(--color-foreground) hover:border-(--color-foreground) transition-colors duration-200"
+            >
+              ← Sebelumnya
+            </a>
+          ) : (
+            <span class="px-3 py-2 rounded-lg text-sm font-medium text-muted/40 cursor-default">
+              ← Sebelumnya
+            </span>
+          )}
+
+          <span class="text-sm text-muted">
+            {page.currentPage} / {page.lastPage}
+          </span>
+
+          {page.url.next ? (
+            <a
+              href={page.url.next}
+              class="px-3 py-2 rounded-lg text-sm font-medium border border-border text-muted hover:text-(--color-foreground) hover:border-(--color-foreground) transition-colors duration-200"
+            >
+              Selanjutnya →
+            </a>
+          ) : (
+            <span class="px-3 py-2 rounded-lg text-sm font-medium text-muted/40 cursor-default">
+              Selanjutnya →
+            </span>
+          )}
+        </nav>
+      )
+    }
+  </div>
+</MainLayout>

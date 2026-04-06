@@ -1,0 +1,19 @@
+---
+interface Props {
+  tag?: string;
+}
+
+const { tag = "article" } = Astro.props;
+---
+
+{
+  tag === "article" ? (
+    <article class="prose dark:prose-invert max-w-none prose-headings:font-medium prose-headings:tracking-tight prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-code:font-mono prose-code:text-sm prose-code:before:content-none prose-code:after:content-none prose-code:bg-border/40 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-pre:bg-surface prose-pre:border prose-pre:border-border prose-img:rounded-xl prose-blockquote:border-primary prose-hr:border-border">
+      <slot />
+    </article>
+  ) : (
+    <div class="prose dark:prose-invert max-w-none prose-headings:font-medium prose-headings:tracking-tight prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-code:font-mono prose-code:text-sm prose-code:before:content-none prose-code:after:content-none prose-code:bg-border/40 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-pre:bg-surface prose-pre:border prose-pre:border-border prose-img:rounded-xl prose-blockquote:border-primary prose-hr:border-border">
+      <slot />
+    </div>
+  )
+}
