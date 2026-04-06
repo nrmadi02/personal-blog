@@ -1,21 +1,23 @@
 // @ts-check
-import { defineConfig } from 'astro/config';
+import { defineConfig } from "astro/config";
 
-import react from '@astrojs/react';
+import react from "@astrojs/react";
 
-import tailwindcss from '@tailwindcss/vite';
+import tailwindcss from "@tailwindcss/vite";
 
-import mdx from '@astrojs/mdx';
+import mdx from "@astrojs/mdx";
+
+import vercel from "@astrojs/vercel";
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://example.com',
+  site: "https://example.com",
   integrations: [react(), mdx()],
   markdown: {
     shikiConfig: {
       themes: {
-        light: 'github-light',
-        dark: 'github-dark',
+        light: "github-light",
+        dark: "github-dark",
       },
       defaultColor: false,
       wrap: true,
@@ -24,4 +26,5 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
   },
+  adapter: vercel(),
 });
