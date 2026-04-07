@@ -46,7 +46,7 @@ const readingTime = estimateReadingTime(post.data.description || "");
     <!-- Back link -->
     <div data-animate>
       <a
-        href="/blog"
+        href="/blog/1"
         class="inline-flex items-center gap-1.5 text-sm text-muted hover:text-primary transition-colors duration-200 mb-8"
       >
         <svg
@@ -103,7 +103,10 @@ const readingTime = estimateReadingTime(post.data.description || "");
     </Prose>
 
     <!-- Post Navigation -->
-    <nav class="mt-16 pt-8 border-t border-border grid grid-cols-2 gap-4" data-animate>
+    <nav
+      class="mt-16 pt-8 border-t border-border grid grid-cols-2 gap-4"
+      data-animate
+    >
       {
         prevPost ? (
           <a

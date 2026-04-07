@@ -21,9 +21,9 @@ const recentPosts = allPosts.slice(0, 5);
         Halo, saya Nur Ahmadi.
       </h1>
       <p class="text-lg text-muted max-w-xl leading-relaxed">
-        Saya menulis tentang pengembangan web, teknologi, dan hal-hal yang sedang
-        saya pelajari. Ini adalah sudut pandang saya di internet untuk berbagi
-        pemikiran dan catatan.
+        Saya menulis tentang pengembangan web, teknologi, dan hal-hal yang
+        sedang saya pelajari. Ini adalah sudut pandang saya di internet untuk
+        berbagi pemikiran dan catatan.
       </p>
     </section>
 
@@ -34,7 +34,7 @@ const recentPosts = allPosts.slice(0, 5);
           Tulisan Terbaru
         </h2>
         <a
-          href="/blog"
+          href="/blog/1"
           class="text-sm font-medium text-primary hover:underline transition-colors duration-200"
         >
           Lihat semua
@@ -59,7 +59,9 @@ const recentPosts = allPosts.slice(0, 5);
 
       {
         recentPosts.length === 0 && (
-          <p class="text-muted text-center py-12">Belum ada tulisan. Nantikan ya!</p>
+          <p class="text-muted text-center py-12">
+            Belum ada tulisan. Nantikan ya!
+          </p>
         )
       }
     </section>
