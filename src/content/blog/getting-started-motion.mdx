@@ -1,0 +1,208 @@
+---
+title: "Memulai dengan Motion untuk React"
+description: "Panduan praktis memulai Motion (sebelumnya Framer Motion) — library animasi React paling populer. Pelajari dasar-dasar, gesture, dan exit animation dengan contoh interaktif."
+pubDate: 2026-04-09
+tags: ["react", "animation", "motion", "tutorial"]
+heroImage: ""
+---
+
+import BounceCard from '../../components/BounceCard.tsx';
+import StaggerList from '../../components/StaggerList.tsx';
+
+Jika kamu pernah merasa animasi CSS terasa terbatas — tidak bisa interrupt di tengah jalan, spring physics tidak ada, gesture di touch device sering bikin frustrasi — maka **Motion** adalah jawabannya.
+
+Motion (sebelumnya dikenal sebagai **Framer Motion**) adalah library animasi React yang sudah digunakan oleh jutaan developer di seluruh dunia. Dengan lebih dari 30 juta download per bulan di npm, ini bukan library baru — ini adalah standar de facto untuk animasi di React.
+
+## Kenapa Motion?
+
+Sebelum masuk ke kode, penting untuk pahami kapan Motion tepat digunakan:
+
+- **CSS cukup** untuk hover sederhana, color transition, dan efek statis lainnya
+- **Motion dibutuhkan** ketika kamu butuh: spring physics, gesture yang konsisten di mobile & desktop, exit animation, layout animation, dan orchestration yang kompleks
+
+Keunggulan utama Motion dibanding CSS murni atau library lain:
+
+1. **Declarative API** — animasi langsung terikat ke state & props React
+2. **Hybrid engine** — menggunakan Web Animations API untuk performa 120fps, dengan JS fallback untuk fitur lanjutan
+3. **Gesture bawaan** — hover, tap, drag, dan focus yang konsisten di semua device
+4. **Layout animation otomatis** — mendeteksi perubahan ukuran/posisi dan menganimasikannya
+5. **TypeScript-first** — fully typed, tree-shakable, dan production-ready
+
+## Instalasi
+
+```bash
+npm install motion
+```
+
+Sejak versi terbaru, import dilakukan dari package `motion`:
+
+```tsx
+import { motion } from "motion/react"
+```
+
+> **Catatan:** Jika kamu pernah menggunakan `framer-motion` sebelumnya, package-nya sudah berganti nama menjadi `motion`. API-nya tetap sama — hanya lokasi import yang berubah.
+
+## Konsep Dasar
+
+### Komponen `<motion />`
+
+Inti dari Motion adalah komponen `<motion />`. Tambahkan prefix `motion.` ke elemen HTML atau SVG mana pun untuk membuka prop animasi:
+
+```tsx
+// Elemen biasa
+<div />
+
+// Motion component — bisa animasi!
+<motion.div animate={{ opacity: 1 }} />
+```
+
+### Tiga Prop Utama
+
+| Prop | Fungsi |
+|------|--------|
+| `initial` | Nilai awal saat komponen pertama kali render |
+| `animate` | Target nilai animasi — otomatis transition saat berubah |
+| `exit` | Animasi saat komponen dihapus dari DOM (butuh `<AnimatePresence>`) |
+
+### Animasi Pertama
+
+```tsx
+import { motion } from "motion/react"
+
+function FadeIn() {
+  return (
+    <motion.p
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
+      Halo, saya muncul dengan animasi!
+    </motion.p>
+  )
+}
+```
+
+Motion secara otomatis memilih tipe animasi yang tepat:
+- **Physical properties** (`x`, `scale`, `rotate`) → spring physics
+- **Visual properties** (`opacity`, `color`) → tween easing
+
+Kamu bisa override ini lewat prop `transition`:
+
+```tsx
+<motion.div
+  animate={{ scale: 1.5 }}
+  transition={{ duration: 0.8, ease: "easeInOut" }}
+/>
+```
+
+## Gesture Animation
+
+Motion mendukung gesture bawaan yang bekerja konsisten di desktop dan mobile:
+
+```tsx
+<motion.button
+  whileHover={{ scale: 1.1 }}
+  whileTap={{ scale: 0.95 }}
+  whileFocus={{ outline: "2px solid #6366f1" }}
+>
+  Klik saya
+</motion.button>
+```
+
+### Contoh 1: Bounce Cards
+
+Berikut contoh interaktif yang menggunakan `whileHover`, `whileTap`, dan spring physics. Hover dan klik kartu-kartu di bawah ini:
+
+<BounceCard client:visible />
+
+Yang terjadi di balik layar:
+
+- **`initial`** — setiap kartu mulai dengan `opacity: 0, y: 30` dan muncul bertahap (staggered delay)
+- **`whileHover`** — kartu membesar sedikit dan berputar ringan
+- **`whileTap`** — kartu mengecil untuk feedback sentuhan
+- **`layout`** — animasi otomatis saat konten kartu berubah (expand/collapse)
+- **`transition` dengan spring** — memberikan feel natural, bukan linear
+
+## Exit Animation dengan AnimatePresence
+
+Salah satu fitur paling powerful di Motion adalah exit animation. Tanpa library tambahan, React langsung menghapus elemen dari DOM — tidak ada kesempatan untuk animasi keluar.
+
+`<AnimatePresence>` memecahkan masalah ini:
+
+```tsx
+import { motion, AnimatePresence } from "motion/react"
+
+function TodoList({ items, onRemove }) {
+  return (
+    <AnimatePresence>
+      {items.map((item) => (
+        <motion.div
+          key={item.id}
+          layout
+          exit={{ opacity: 0, x: 60 }}
+          initial={{ opacity: 0, x: -40 }}
+          animate={{ opacity: 1, x: 0 }}
+        >
+          {item.text}
+          <button onClick={() => onRemove(item.id)}>✕</button>
+        </motion.div>
+      ))}
+    </AnimatePresence>
+  )
+}
+```
+
+> **Penting:** `key` prop wajib ada agar AnimatePresence bisa melacak elemen yang dihapus.
+
+### Contoh 2: Stagger List
+
+Klik item di bawah ini untuk melihat stagger + exit animation:
+
+<StaggerList client:visible />
+
+Fitur yang didemonstrasikan:
+
+- **Staggered enter** — setiap item muncul dengan delay bertahap (`delay: i * 0.08`)
+- **Icon spring** — ikon muncul terpisah dengan delay lebih lama dan spring yang berbeda
+- **`whileHover`** — item bergeser ke kanan dan berubah warna latar
+- **`whileTap`** — feedback scale saat ditekan
+- **`exit`** — item yang dihapus animasi ke kanan dan mengecil
+- **`AnimatePresence`** — memungkinkan exit animation sebelum elemen dihapus dari DOM
+- **`layout`** — item yang tersisa otomatis bergeser halus mengisi posisi kosong
+
+## Scroll Animation
+
+Untuk animasi yang triggered saat elemen masuk viewport:
+
+```tsx
+<motion.section
+  initial={{ opacity: 0, y: 50 }}
+  whileInView={{ opacity: 1, y: 0 }}
+  viewport={{ once: true, margin: "-100px" }}
+  transition={{ duration: 0.6 }}
+>
+  Konten ini muncul saat di-scroll
+</motion.section>
+```
+
+`viewport={{ once: true }}` memastikan animasi hanya terjadi sekali — ideal untuk konten blog seperti ini.
+
+## Tips Performance
+
+1. **Gunakan `transform` properties** (`x`, `y`, `scale`, `rotate`) — ini di-handle oleh GPU dan tidak trigger reflow
+2. **`whileInView` dengan `once: true`** — untuk konten yang hanya perlu animasi sekali
+3. **Hindari animasi `width`/`height`** jika bisa — gunakan `scale` sebagai alternatif
+4. **`layout` prop itu powerful tapi mahal** — gunakan hanya saat benar-benar dibutuhkan
+5. **Directive `client:visible` di Astro** — komponen hanya terhidrasi saat masuk viewport, menghemat JS bundle
+
+## Apa Selanjutnya?
+
+Motion punya banyak fitur lain yang bisa dieksplorasi:
+
+- **Layout animations** — animasi otomatis saat posisi/ukuran berubah
+- **Drag** — drag & drop gesture bawaan
+- **Scroll-linked** — kaitkan nilai langsung ke posisi scroll
+- **SVG animation** — path morphing, line drawing, dan lainnya
+- **Orchestration** — koordinasi animasi kompleks dengan variants
+
+Dokumentasi lengkap ada di [motion.dev/docs/react](https://motion.dev/docs/react), dan koleksi contoh interaktif di [motion.dev/examples](https://motion.dev/examples).
+
