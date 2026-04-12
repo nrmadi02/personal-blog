@@ -1,0 +1,212 @@
+---
+title: "Kenapa Svelte Lebih Baik? — Sebuah Cerita Tentang Framework yang Berpikir Berbeda"
+description: "Virtual DOM bukan tentang kecepatan. Virtual DOM tentang kenyamanan developer. Svelte mengambil pendekatan yang berbeda — menghapus layer, bukan menambahnya."
+pubDate: 2026-04-12
+tags: ["svelte", "react", "vue", "frontend", "performance"]
+heroImage: ""
+---
+
+import SvelteVdomDemo from '../../components/SvelteVdomDemo.tsx';
+import SvelteCounterDemo from '../../components/SvelteCounterDemo.tsx';
+import SvelteSyntaxTabs from '../../components/SvelteSyntaxTabs.tsx';
+import SvelteCompareToggle from '../../components/SvelteCompareToggle.tsx';
+import SvelteStatBars from '../../components/SvelteStatBars.tsx';
+
+Selama bertahun-tahun, kita diajari satu "kebenaran" di dunia frontend: **Virtual DOM itu cepat.** React mengajarkannya. Vue mengikutinya. Setiap tutorial di YouTube mengulang-ulang kalimat yang sama — "Virtual DOM membuat aplikasi kamu lebih efisien karena..."
+
+Tapi... apakah itu benar-benar benar? Atau cuma cerita nyaman yang kita terima begitu saja karena semua orang bilang begitu?
+
+> "Virtual DOM bukan teknologi yang membuat aplikasi lebih cepat. Virtual DOM adalah strategi untuk menghindari keharusan menulis kode update DOM secara manual."
+>
+> — Rich Harris, pencipta Svelte
+
+Dan itulah perbedaan mendasar. Virtual DOM bukan tentang **kecepatan**. Virtual DOM tentang **kenyamanan developer**. Dan Svelte mengambil pendekatan yang berbeda — bukan dengan menambah layer baru, tapi dengan menghapusnya.
+
+## Apa itu Virtual DOM dan kenapa itu (ternyata) mahal?
+
+Bayangkan kamu punya toko. Setiap kali ada barang yang berubah harga, cara React melakukannya:
+
+1. Buat salinan *seluruh* katalog toko versi baru (New VDOM)
+2. Bandingkan satu-satu dengan salinan lama (Old VDOM)
+3. Catat perbedaannya (diff)
+4. Update hanya yang berubah di toko asli (DOM) — "reconciliation"
+
+Proses ini terjadi **setiap kali state berubah**. Jumlah item yang berubah? Satu. Jumlah item yang dibandingkan? **Semua.** Itulah masalahnya.
+
+<SvelteVdomDemo client:visible />
+
+### Kenapa ini masalah di dunia nyata?
+
+Di aplikasi kecil, overhead ini tidak terasa. Tapi saat aplikasi berkembang — ratusan komponen, banyak state yang sering berubah — kamu mulai merasakannya. Framework yang membawa 40KB+ JavaScript ke browser, lalu setiap interaksi butuh:
+
+- Create VDOM tree baru
+- Diff algorithm (O(n) complexity)
+- Reconciliation & commit ke real DOM
+- Schedule & scheduling overhead
+
+Semua itu berjalan di **runtime** — artinya di browser pengguna, setiap detik. Dan browser itu... tidak secepat yang kita kira.
+
+## Svelte: Compile, don't interpret
+
+Inilah yang bikin Svelte berbeda. Alih-alih membawa "framework engine" yang berjalan di browser, Svelte melakukan sesuatu yang radikal: dia **mengkompilasi komponen kamu jadi vanilla JavaScript murni** di build time.
+
+Tidak ada Virtual DOM. Tidak ada diffing. Tidak ada reconciliation engine yang harus di-load. Yang ada hanyalah kode JavaScript yang langsung update DOM tepat di bagian yang berubah.
+
+**Yang kamu tulis — Svelte:**
+
+```svelte
+<script>
+  let count = 0;
+  function increment() { count++; }
+</script>
+
+<button on:click={increment}>
+  Clicked {count} times
+</button>
+```
+
+**Yang jalan di browser (dikompilasi):**
+
+```js
+// Lihat: tidak ada framework, tidak ada import
+// Hanya kode yang men-update elemen yang tepat
+
+let count = 0;
+
+button.addEventListener('click', () => {
+  count++;
+  button.textContent = `Clicked ${count} times`;
+});
+```
+
+Bandingkan dengan React — meskipun kodenya terlihat sama sederhananya, di balik layar React harus menjalankan `React.createElement()`, mengupdate Virtual DOM tree, menjalankan diff algorithm, baru kemudian update DOM. **Svelte? Langsung update.**
+
+<SvelteCounterDemo client:visible />
+
+Di demo di atas, perhatikan bagian "kerja" yang dilakukan. React dan Vue harus melalui beberapa langkah sebelum DOM ter-update. Svelte langsung menulis ke DOM. **Itulah bedanya di dunia nyata.**
+
+## Syntax yang terasa natural
+
+Salah satu hal yang paling bikin betah di Svelte adalah syntax-nya. Tidak ada JSX yang butuh transpiler terpisah. Tidak ada template string yang bikin pusing. Yang ada hanyalah **HTML, CSS, dan JavaScript — exactly seperti yang sudah kamu kenal.**
+
+### Button dengan state — head-to-head
+
+<SvelteSyntaxTabs client:visible />
+
+Perhatikan: **tidak ada import.** Tidak ada `useState`, tidak ada `ref`. Variabel JavaScript biasa saja, dan Svelte tahu kapan harus update DOM. Itulah keajaiban *reactive declarations* — compiler yang memahami intent kamu.
+
+### CSS scoping tanpa drama
+
+Di React, kamu butuh CSS Modules, styled-components, atau Tailwind. Di Vue, ada `<style scoped>` yang bekerja dengan baik. Tapi di Svelte, scoped CSS adalah fitur native yang *just works* — dan bahkan lebih pintar dari itu.
+
+```svelte
+<script>
+  let primary = '#ff3e00';
+</script>
+
+<style>
+  button {
+    background: var(primary);  /* Ini baca dari JS! */
+  }
+</style>
+
+<button>Warna saya ikut state!</button>
+```
+
+## Angka tidak berbohong
+
+Saat kamu memilih framework, kamu juga memilih berapa kilobyte yang harus di-download pengguna. Dan di dunia mobile, setiap kilobyte berarti — artinya waktu loading lebih lama, bounce rate lebih tinggi, dan konversi lebih rendah.
+
+<SvelteStatBars client:visible />
+
+React butuh ~42KB (min+gzip) hanya untuk framework-nya saja. Vue lebih ringan di ~33KB. Svelte? **~1.6KB.** Itu bukan typo. Satu koma enam kilobyte. Sisanya — komponen, state management, transitions — sudah dikompilasi jadi vanilla JS yang tidak butuh framework runtime.
+
+### Performance: JS Framework Benchmark
+
+Menurut [js-framework-benchmark](https://krausest.github.io/js-framework-benchmark/), Svelte secara konsisten berada di top tier untuk:
+
+- Startup time (karena bundle kecil)
+- Memory usage (tidak ada VDOM tree di memory)
+- Update performance (direct DOM manipulation)
+- Overall score
+
+<SvelteCompareToggle client:visible />
+
+## Reactivity yang masuk akal
+
+React memperkenalkan hooks di 2019, dan itu membuat banyak hal lebih baik. Tapi mari jujur — `useEffect` itu membingungkan. Dependency array yang harus di-maintain manual, stale closures, infinite re-renders... kita semua pernah mengalami ini.
+
+**React — derived state:**
+
+```jsx
+const [items, setItems] = useState([]);
+const [filter, setFilter] = useState('');
+
+// Setiap kali items atau filter berubah,
+// kamu harus compute ulang filtered
+const filtered = items.filter(item =>
+  item.name.includes(filter)
+);
+
+// Dan useEffect-nya? Jangan lupa deps array!
+useEffect(() => {
+  localStorage.setItem('items', JSON.stringify(items));
+}, [items]); // ← lupa items? bug.
+```
+
+**Svelte — same thing, no ceremony:**
+
+```svelte
+<script>
+  let items = [];
+  let filter = '';
+
+  // Derived state: reactive by default
+  $: filtered = items.filter(item =>
+    item.name.includes(filter)
+  );
+
+  // Side effect: runs automatically when items changes
+  $: localStorage.setItem('items', JSON.stringify(items));
+  //    ↑ tidak ada dependency array. compiler yang handle.
+</script>
+```
+
+Di Svelte, `$:` adalah reactive statement. Dia otomatis berjalan ketika variabel yang dia pakai berubah. **Tidak ada dependency array.** Tidak ada stale closures. Tidak ada useEffect debugging. Compiler tahu persis apa yang harus di-track.
+
+## "Tapi ekosistem React lebih besar..."
+
+Iya, itu fakta. React punya ekosistem terbesar. Next.js, TanStack Query, Radix UI, dan ribuan library lainnya. Dan itu valid.
+
+Tapi pertanyaannya: **apa kamu membutuhkan semua itu?**
+
+Svelte membangun banyak hal yang di React butuh library eksternal:
+
+- **State management** — Svelte stores (built-in, reaktif, ringan)
+- **Animations** — Svelte transitions (built-in, deklaratif)
+- **Form handling** — Two-way binding (built-in)
+- **Portal** — `<svelte:portal>` (built-in)
+- **Server-side rendering** — SvelteKit (full-stack, performant)
+
+Dengan SvelteKit, kamu punya routing, SSR, API routes, dan deployment — semua dalam satu paket yang cohesive. Tidak perlu pusing pilih antara Pages Router vs App Router di Next.js. Tidak perlu debat "server component vs client component."
+
+## Jadi... kenapa Svelte?
+
+Bukan karena Svelte sempurna. Tidak ada framework yang sempurna. Tapi Svelte punya sesuatu yang jarang dimiliki framework lain: **dia berani mempertanyakan asumsi.**
+
+> "Kamu membutuhkan framework yang mengurus state, reactivity, dan lifecycle. Tapi kamu TIDAK membutuhkan framework itu berjalan di browser pengguna kamu."
+>
+> — Filosofi inti Svelte
+
+Svelte mengajarkan kita bahwa kita bisa memiliki developer experience yang luar biasa **tanpa** membebankan runtime cost ke pengguna. Bahwa reactivity bisa di-handle di compile time, bukan runtime. Bahwa syntax bisa sederhana tanpa kehilangan power.
+
+### TL;DR
+
+- **Bundle super kecil** — ~1.6KB vs 33-42KB
+- **Performance terbaik** — tanpa VDOM overhead
+- **Syntax minimalis** — tulis lebih sedikit, lakukan lebih banyak
+- **Reactivity yang masuk akal** — tidak ada useEffect debugging
+- **CSS scoping native** — bahkan bisa baca JS state
+- **Banyak fitur built-in** — stores, transitions, bindings
+
+Kalau kamu belum pernah coba Svelte, sekarang saatnya. Mulai dari [tutorial interaktif resminya](https://svelte.dev/tutorial) — cuma butuh 30 menit. Dan siap-siap jatuh cinta.
