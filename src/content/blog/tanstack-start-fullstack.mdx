@@ -1,0 +1,470 @@
+---
+title: Mengenal TanStack Start — Fullstack Framework React yang Type-Safe dari Database ke UI
+description: Eksplorasi TanStack Start, framework fullstack React baru dari kreator TanStack Query. Contoh code lengkap, cara handling data fetching, dan kenapa framework ini layak kamu coba.
+pubDate: 2026-05-05
+tags: [react, tanstack, fullstack, typescript, webdev]
+---
+
+import TanStackArchitecture from '../../components/TanStackArchitecture.tsx';
+
+Setiap kali mulai project React baru, saya selalu dihadapkan pada pertanyaan yang sama: **framework apa?**
+
+Next.js terlalu kompleks untuk project kecil. Remix punya DX yang oke tapi ekosistemnya belum selebar Next.js. Astro? Mantap untuk konten, tapi kurang cocok untuk aplikasi yang butuh interaktivitas penuh di client.
+
+Lalu saya menemukan **TanStack Start** — framework fullstack dari Tanner Linsley, orang yang sama di balik TanStack Query (library data fetching yang sudah dipakai jutaan developer).
+
+Setelah beberapa hari ngoprek, ini yang saya temukan.
+
+---
+
+## Apa Itu TanStack Start?
+
+Bayangkan kamu sudah nyaman pakai **TanStack Query** untuk fetching data dan **TanStack Router** untuk routing. TanStack Start pada dasarnya menggabungkan keduanya, lalu menambahkan layer **server functions** dan **SSR** di atasnya — semua dalam satu framework.
+
+Arsitekturnya sederhana:
+
+<TanStackArchitecture client:load />
+
+Bedanya dengan Next.js: TanStack Start tidak memperkenalkan konsep yang benar-benar asing. Kalau kamu sudah pakai TanStack Query, 70% pengalaman development-nya sudah familiar.
+
+Satu hal yang bikin saya tersenyum: **type-safe end-to-end**. Dari database (Drizzle/Zod) → server function → router → component. TypeScript-mu menyala di semua layer. Tidak ada lagi `any` diam-diam di perjalanan data.
+
+Status framework ini sekarang: **RC (Release Candidate)** — feature-complete, sudah bisa dipakai production (dengan lock versi dependency).
+
+---
+
+## Contoh Fullstack: Blog Mini
+
+Daripada teori mulu, mari kita bangun aplikasi blog sederhana. Fiturnya: lihat daftar post, buat post baru, dan lihat detail post.
+
+### Step 1: Setup Project
+
+```bash
+npx create-tanstack-app@latest my-tanstack-blog
+# Pilih template "start-basic-react-query"
+cd my-tanstack-blog
+npm install drizzle-orm better-sqlite3
+npm install -D @types/better-sqlite3 drizzle-kit
+```
+
+### Step 2: Setup Database dengan Drizzle
+
+Pertama, definisikan schema table `posts`:
+
+```typescript
+// app/db/schema.ts
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+
+export const posts = sqliteTable("posts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
+});
+```
+
+Lalu buat koneksi database:
+
+```typescript
+// app/db/index.ts
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import * as schema from "./schema";
+
+const sqlite = new Database("blog.db");
+export const db = drizzle(sqlite, { schema });
+```
+
+### Step 3: Server Functions — Jantung Data Fetching
+
+Di sinilah TanStack Start benar-benar bersinar. Kamu menulis **server function** — fungsi TypeScript biasa yang jalan di server, lalu dipanggil dari client seperti fungsi biasa. Tidak perlu REST endpoint manual.
+
+```typescript
+// app/server-functions/posts.ts
+import { createServerFn } from "@tanstack/start";
+import { z } from "zod";
+import { db } from "../db";
+import { posts } from "../db/schema";
+
+// Fetch semua post
+export const getPosts = createServerFn({ method: "GET" }).handler(async () => {
+  const allPosts = await db.select().from(posts).all();
+  return allPosts;
+});
+
+// Fetch satu post berdasarkan ID
+export const getPost = createServerFn({ method: "GET" })
+  .validator((data: { postId: string }) => data)
+  .handler(async ({ data }) => {
+    const post = await db
+      .select()
+      .from(posts)
+      .where(eq(posts.id, parseInt(data.postId)))
+      .get();
+    if (!post) throw new Error("Post tidak ditemukan");
+    return post;
+  });
+
+// Buat post baru
+export const createPost = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      title: z.string().min(1, "Judul wajib diisi"),
+      content: z.string().min(1, "Konten wajib diisi"),
+    })
+  )
+  .handler(async ({ data }) => {
+    const newPost = await db.insert(posts).values(data).returning().get();
+    return newPost;
+  });
+```
+
+Beberapa hal yang perlu diperhatikan:
+
+- `createServerFn` menerima method HTTP (`GET` atau `POST`)
+- `.validator()` menerima skema Zod — validasi otomatis di server, type inference di client
+- Return type dari server function otomatis ter-infer. Kamu dapat auto-complete di client. **Type-safe end-to-end.**
+
+### Step 4: Routing — Halaman List Post
+
+Sekarang kita tampilkan data di halaman utama. TanStack Start pakai file-based routing ala Next.js.
+
+```tsx
+// app/routes/index.tsx
+import { createFileRoute } from "@tanstack/react-router";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { getPosts } from "../server-functions/posts";
+
+export const Route = createFileRoute("/")({
+  loader: () => getPosts(),
+  component: HomeComponent,
+});
+
+function HomeComponent() {
+  const posts = Route.useLoaderData();
+
+  return (
+    <div style={{ maxWidth: 640, margin: "0 auto", padding: 24 }}>
+      <h1>Blog Saya</h1>
+      <a href="/new" style={{ display: "inline-block", marginBottom: 16 }}>
+        + Tulis Post Baru
+      </a>
+
+      {posts.length === 0 ? (
+        <p>Belum ada post. Yuk tulis yang pertama!</p>
+      ) : (
+        posts.map((post) => (
+          <article
+            key={post.id}
+            style={{
+              border: "1px solid #e5e7eb",
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 12,
+            }}
+          >
+            <a
+              href={`/posts/${post.id}`}
+              style={{ fontSize: 18, fontWeight: 600 }}
+            >
+              {post.title}
+            </a>
+            <p style={{ color: "#6b7280", marginTop: 4 }}>
+              {post.content.slice(0, 120)}...
+            </p>
+          </article>
+        ))
+      )}
+    </div>
+  );
+}
+```
+
+Yang menarik: `loader`-nya langsung memanggil server function `getPosts()`. Tidak ada `fetch('/api/posts')` manual. Function yang sama kamu pakai di server **dan** client. TanStack Query otomatis menangani caching, refetch, dan state management di balik layar.
+
+### Step 5: Dynamic Route — Detail Post
+
+Untuk halaman detail, kita pakai dynamic route dengan parameter `$postId`:
+
+```tsx
+// app/routes/posts.$postId.tsx
+import { createFileRoute } from "@tanstack/react-router";
+import { getPost } from "../server-functions/posts";
+
+export const Route = createFileRoute("/posts/$postId")({
+  loader: ({ params }) => getPost({ data: { postId: params.postId } }),
+  component: PostDetail,
+});
+
+function PostDetail() {
+  const post = Route.useLoaderData();
+
+  return (
+    <div style={{ maxWidth: 640, margin: "0 auto", padding: 24 }}>
+      <a href="/">← Kembali</a>
+      <h1>{post.title}</h1>
+      <time style={{ color: "#9ca3af", fontSize: 14 }}>{post.createdAt}</time>
+      <div style={{ marginTop: 24, lineHeight: 1.8 }}>{post.content}</div>
+    </div>
+  );
+}
+```
+
+Perhatikan `params.postId` — ini **type-safe**. Kalau kamu typo jadi `params.postID` (kapital D), TypeScript akan menjerit. Router-nya tahu persis parameter apa yang ada di URL pattern `/posts/$postId`.
+
+### Step 6: Form Buat Post Baru
+
+Terakhir, form untuk membuat post — di sini kita lihat bagaimana **mutasi** bekerja:
+
+```tsx
+// app/routes/new.tsx
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useMutation } from "@tanstack/react-query";
+import { useState } from "react";
+import { createPost } from "../server-functions/posts";
+
+export const Route = createFileRoute("/new")({
+  component: NewPostPage,
+});
+
+function NewPostPage() {
+  const navigate = useNavigate();
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: createPost,
+    onSuccess: (newPost) => {
+      navigate({ to: `/posts/${newPost.id}` });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate({ data: { title, content } });
+  };
+
+  return (
+    <div style={{ maxWidth: 640, margin: "0 auto", padding: 24 }}>
+      <h1>Tulis Post Baru</h1>
+
+      <form onSubmit={handleSubmit}>
+        <div style={{ marginBottom: 16 }}>
+          <label>Judul</label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }}
+          />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label>Konten</label>
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={8}
+            style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }}
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={mutation.isPending}
+          style={{
+            padding: "10px 24px",
+            background: "#2563eb",
+            color: "white",
+            border: "none",
+            borderRadius: 6,
+            cursor: "pointer",
+          }}
+        >
+          {mutation.isPending ? "Menyimpan..." : "Terbitkan"}
+        </button>
+
+        {mutation.isError && (
+          <p style={{ color: "#dc2626", marginTop: 8 }}>
+            Gagal menyimpan: {mutation.error.message}
+          </p>
+        )}
+      </form>
+    </div>
+  );
+}
+```
+
+Di sini `useMutation` langsung menerima server function `createPost` sebagai `mutationFn`. TanStack Query otomatis menangani state loading, error, dan success. Tanpa boilerplate `try/catch` yang berulang-ulang.
+
+---
+
+## Cara TanStack Start Menangani Data Fetching
+
+Kalau kamu terbiasa dengan Next.js App Router, konsep data fetching di TanStack Start mungkin terasa... **lebih sederhana**. Ini flow-nya:
+
+### 1. Server Functions, Bukan API Routes
+
+Di Next.js, kalau kamu butuh data dari database, opsi yang umum:
+
+- **Server Component + langsung query DB** — oke, tapi begitu butuh interaktivitas di client, mulai repot
+- **API Route + `fetch('/api/...')`** — boilerplate REST manual, tipe data tidak terjamin
+
+Di TanStack Start, **server function** adalah jalan tengahnya. Fungsi TypeScript biasa yang:
+
+- Jalan di server (secure — kredensial database tidak bocor ke client)
+- Dipanggil dari client seperti fungsi biasa (tidak perlu bikin endpoint HTTP manual)
+- Type-safe — return type otomatis ter-infer dari handler
+
+```typescript
+// ❌ Next.js style: bikin API route manual
+// app/api/posts/route.ts
+export async function GET() {
+  const posts = await db.select().from(posts).all();
+  return Response.json(posts);
+}
+
+// ✅ TanStack Start: server function
+export const getPosts = createServerFn({ method: "GET" }).handler(async () => {
+  return await db.select().from(posts).all();
+});
+```
+
+### 2. TanStack Query sebagai Caching Layer Bawaan
+
+Setiap server function yang kamu panggil dari loader otomatis masuk ke cache TanStack Query. Ini artinya:
+
+- **Deduplikasi otomatis**: kalau 3 komponen panggil fungsi yang sama, hanya 1 request ke server
+- **Stale-while-revalidate**: data dari cache langsung tampil, lalu refresh di background
+- **Optimistic update**: mirip seperti yang biasa kamu lakukan dengan `useMutation`
+
+Yang paling keren: kamu **tidak perlu setup apa pun**. TanStack Query sudah terintegrasi dari awal. Tidak ada provider wrapping, tidak ada `QueryClient` manual. Semua handled by framework.
+
+### 3. Streaming Data
+
+TanStack Start mendukung **streaming SSR** — data dikirim ke browser secara inkremental. Komponen yang siap duluan akan dirender duluan. User melihat konten lebih cepat.
+
+```tsx
+// Komponen lambat tidak memblokir seluruh halaman
+function SlowComponent() {
+  const data = useSuspenseQuery({
+    queryKey: ["analytics"],
+    queryFn: () => getAnalytics(), // server function yang lambat
+  });
+
+  return <div>{data.totalVisitors} pengunjung</div>;
+}
+
+// Halaman tetap dirender, SlowComponent muncul saat data siap
+function Page() {
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <React.Suspense fallback={<p>Memuat analitik...</p>}>
+        <SlowComponent />
+      </React.Suspense>
+    </div>
+  );
+}
+```
+
+---
+
+## Kenapa TanStack Start Layak Dipertimbangkan
+
+Setelah ngoprek beberapa hari, ini 5 alasan konkret kenapa saya pikir TanStack Start bisa jadi pilihan serius:
+
+### 1. Type-safe dari Database ke UI — No `any` Zone
+
+Ini bukan sekadar buzzword. Saat kamu query database dengan Drizzle, hasilnya sudah typed. Server function meneruskan tipe itu ke client. Router menerima tipe yang sama. TypeScript-mu menyala di semua layer.
+
+**Dampak nyata**: refactor lebih berani, runtime error lebih sedikit, auto-complete selalu akurat.
+
+### 2. Server Functions sebagai First-Class Citizen
+
+Kamu tidak perlu memilih antara "bikin REST API" atau "query langsung di komponen". Server functions adalah middle ground yang elegan: secure di server, simple di client, typed di keduanya.
+
+```typescript
+// Dipanggil persis seperti fungsi biasa — tapi jalan di server
+const posts = await getPosts();
+```
+
+### 3. Ekosistem yang Sudah Matang
+
+TanStack Start dibangun di atas tools yang sudah terbukti:
+
+| Library | Weekly NPM Downloads | Status |
+|---------|---------------------|--------|
+| TanStack Query | ~5M+ | Stable (v5) |
+| TanStack Router | ~100K+ | Stable (v1) |
+| Vite | ~12M+ | Stable |
+
+Ini bukan framework yang membangun semuanya dari nol. Mereka membangun di atas fondasi yang sudah teruji.
+
+### 4. Tidak Ada "Magic" Berlebihan
+
+Salah satu frustrasi saya dengan Next.js App Router: kadang susah membedakan mana yang jalan di server dan mana yang di client. "use client", "use server", RSC boundary, caching behavior yang berubah antar versi...
+
+TanStack Start lebih eksplisit. Server functions jelas-jelas jalan di server. Komponen React jelas-jelas jalan di client (atau SSR). Kamu selalu tahu apa yang terjadi.
+
+### 5. Deployment Fleksibel
+
+Karena berbasis Vite, TanStack Start bisa dideploy ke mana saja:
+
+- **Node.js** server (Express, Fastify, Hono)
+- **Cloudflare Workers** (melalui `@tanstack/start-plugin-cloudflare`)
+- **Netlify** (melalui `@tanstack/start-plugin-netlify`)
+- **Vercel, AWS, Docker** — semua yang support Node.js
+
+Tidak ada vendor lock-in. Pindah hosting tidak perlu rewrite aplikasi.
+
+---
+
+## Perbandingan Cepat: TanStack Start vs Next.js
+
+| Aspek | TanStack Start | Next.js (App Router) |
+|-------|---------------|---------------------|
+| Routing | TanStack Router (type-safe) | File-based (string-based) |
+| Data fetching | Server Functions + Query | RSC + fetch() / API routes |
+| Mutasi | `useMutation` (built-in) | Server Actions / API routes |
+| Caching | TanStack Query (otomatis) | Manual, kompleks |
+| Type safety | End-to-end | Partial |
+| Deployment | Vite-based (fleksibel) | Vercel-optimized |
+| Learning curve | Sedang (kalau sudah kenal Query) | Curam (App Router) |
+
+---
+
+## Kapan Sebaiknya Pakai TanStack Start?
+
+Gunakan TanStack Start kalau:
+
+- Kamu **sudah nyaman dengan TanStack Query** dan ingin fullstack solution
+- Kamu ingin **type safety penuh** dari database ke UI
+- Kamu tidak mau **vendor lock-in** ke platform tertentu
+- Kamu lebih suka **eksplisit** dibanding "magic" (server components, RSC rules, dll)
+
+Pertimbangkan Next.js kalau:
+
+- Kamu butuh **ekosistem terbesar** (tutorial, library, jawaban StackOverflow)
+- Kamu sudah **deep di Vercel ecosystem**
+- Tim kamu sudah **terbiasa dengan App Router**
+
+---
+
+## Mulai dari Mana?
+
+Kalau kamu tertarik, cara paling cepat adalah clone contoh resmi:
+
+```bash
+npx degit tanstack/tanstack.com/examples/react/start-basic-react-query my-app
+cd my-app
+npm install
+npm run dev
+```
+
+Buka `http://localhost:3000` dan kamu sudah bisa langsung ngoprek.
+
+---
+
+TanStack Start bukanlah "Next.js killer" — dan saya rasa itu bukan tujuannya. Tapi untuk developer yang sudah jatuh cinta dengan TanStack Query dan menginginkan pengalaman fullstack yang **konsisten, type-safe, dan tanpa kejutan**, ini adalah framework yang layak mendapat perhatian serius.
+
+Saya pribadi akan menggunakannya untuk project personal berikutnya. Mungkin kamu juga.
